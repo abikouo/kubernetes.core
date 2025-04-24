@@ -14,7 +14,7 @@ module: helm
 
 short_description: Manages Kubernetes packages with the Helm package manager
 
-version_added: "0.11.0"
+version_added: 0.11.0
 
 author:
   - Lucas Boisserie (@LucasBoisserie)
@@ -61,7 +61,7 @@ options:
     default: false
     type: bool
     aliases: [ dep_up ]
-    version_added: "2.4.0"
+    version_added: 2.4.0
   release_name:
     description:
       - Release name to manage.
@@ -99,7 +99,7 @@ options:
     default: []
     type: list
     elements: str
-    version_added: '1.1.0'
+    version_added: 1.1.0
   update_repo_cache:
     description:
       - Run C(helm repo update) before the operation. Can be run as part of the package installation or as a separate step (see Examples).
@@ -129,7 +129,7 @@ options:
           - string
           - json
           - file
-    version_added: '2.4.0'
+    version_added: 2.4.0
   reuse_values:
     description:
       - When upgrading package, specifies wether to reuse the last release's values and merge in any overrides from parameters I(release_values),
@@ -137,14 +137,14 @@ options:
       - If I(reset_values) is set to C(True), this is ignored.
     type: bool
     required: false
-    version_added: '2.5.0'
+    version_added: 3.0.0
   reset_values:
     description:
       - When upgrading package, reset the values to the ones built into the chart.
     type: bool
     required: false
     default: True
-    version_added: '2.5.0'
+    version_added: 3.0.0
 
 #Helm options
   disable_hook:
@@ -181,7 +181,7 @@ options:
       - similar to C(wait_timeout) but does not required C(wait) to be activated.
       - Mutually exclusive with C(wait_timeout).
     type: str
-    version_added: "2.3.0"
+    version_added: 2.3.0
   atomic:
     description:
       - If set, the installation process deletes the installation on failure.
@@ -192,12 +192,12 @@ options:
       - Create the release namespace if not present.
     type: bool
     default: False
-    version_added: "0.11.1"
+    version_added: 0.11.1
   post_renderer:
     description:
       - Path to an executable to be used for post rendering.
     type: str
-    version_added: "2.4.0"
+    version_added: 2.4.0
   replace:
     description:
       - Reuse the given name, only if that name is a deleted release which remains in the history.
@@ -205,19 +205,19 @@ options:
       - mutually exclusive with with C(history_max).
     type: bool
     default: False
-    version_added: "1.11.0"
+    version_added: 1.11.0
   skip_crds:
     description:
       - Skip custom resource definitions when installing or upgrading.
     type: bool
     default: False
-    version_added: "1.2.0"
+    version_added: 1.2.0
   history_max:
     description:
       - Limit the maximum number of revisions saved per release.
       - mutually exclusive with with C(replace).
     type: int
-    version_added: "2.2.0"
+    version_added: 2.2.0
 extends_documentation_fragment:
   - kubernetes.core.helm_common_options
 """
@@ -393,10 +393,11 @@ command:
   sample: helm upgrade ...
 """
 
+import copy
 import re
 import tempfile
 import traceback
-import copy
+
 from ansible_collections.kubernetes.core.plugins.module_utils.version import (
     LooseVersion,
 )
@@ -471,7 +472,7 @@ def run_dep_update(module, chart_ref):
     """
     Run dependency update
     """
-    dep_update = module.get_helm_binary() + " dependency update " + chart_ref
+    dep_update = module.get_helm_binary() + f" dependency update '{chart_ref}'"
     rc, out, err = module.run_helm_command(dep_update)
 
 
@@ -479,7 +480,7 @@ def fetch_chart_info(module, command, chart_ref):
     """
     Get chart info
     """
-    inspect_command = command + " show chart " + chart_ref
+    inspect_command = command + f" show chart '{chart_ref}'"
 
     rc, out, err = module.run_helm_command(inspect_command)
 
@@ -571,7 +572,7 @@ def deploy(
     if set_value_args:
         deploy_command += " " + set_value_args
 
-    deploy_command += " " + release_name + " " + chart_name
+    deploy_command += " " + release_name + f" '{chart_name}'"
     return deploy_command
 
 
@@ -638,6 +639,9 @@ def helmdiff_check(
     replace=False,
     chart_repo_url=None,
     post_renderer=False,
+    set_value_args=None,
+    reuse_values=None,
+    reset_values=True,
 ):
     """
     Use helm diff to determine if a release would change by upgrading a chart.
@@ -651,9 +655,13 @@ def helmdiff_check(
     if chart_version is not None:
         cmd += " " + "--version=" + chart_version
     if not replace:
-        cmd += " " + "--reset-values"
+        cmd += " " + "--reset-values=" + str(reset_values)
     if post_renderer:
         cmd += " --post-renderer=" + post_renderer
+
+    if values_files:
+        for value_file in values_files:
+            cmd += " --values=" + value_file
 
     if release_values != {}:
         fd, path = tempfile.mkstemp(suffix=".yml")
@@ -662,9 +670,11 @@ def helmdiff_check(
         cmd += " -f=" + path
         module.add_cleanup_file(path)
 
-    if values_files:
-        for values_file in values_files:
-            cmd += " -f=" + values_file
+    if set_value_args:
+        cmd += " " + set_value_args
+
+    if reuse_values:
+        cmd += " --reuse-values"
 
     rc, out, err = module.run_helm_command(cmd)
     return (len(out.strip()) > 0, out.strip())
@@ -846,11 +856,11 @@ def main():
                     "Please consider add dependencies block or disable dependency_update to remove this warning."
                 )
 
-        if release_status is None:  # Not installed
-            set_value_args = None
-            if set_values:
-                set_value_args = module.get_helm_set_values_args(set_values)
+        set_value_args = None
+        if set_values:
+            set_value_args = module.get_helm_set_values_args(set_values)
 
+        if release_status is None:  # Not installed
             helm_cmd = deploy(
                 module,
                 helm_cmd,
@@ -877,7 +887,6 @@ def main():
             changed = True
 
         else:
-
             helm_diff_version = get_plugin_version("diff")
             if helm_diff_version and (
                 not chart_repo_url
@@ -896,6 +905,9 @@ def main():
                     replace,
                     chart_repo_url,
                     post_renderer,
+                    set_value_args,
+                    reuse_values=reuse_values,
+                    reset_values=reset_values,
                 )
                 if would_change and module._diff:
                     opt_result["diff"] = {"prepared": prepared}
@@ -909,10 +921,6 @@ def main():
                 )
 
             if force or would_change:
-                set_value_args = None
-                if set_values:
-                    set_value_args = module.get_helm_set_values_args(set_values)
-
                 helm_cmd = deploy(
                     module,
                     helm_cmd,

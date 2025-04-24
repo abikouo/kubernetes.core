@@ -12,7 +12,7 @@ __metaclass__ = type
 DOCUMENTATION = r"""
 module: k8s_rollback
 short_description: Rollback Kubernetes (K8S) Deployments and DaemonSets
-version_added: "1.0.0"
+version_added: 1.0.0
 author:
     - "Julien Huon (@julienhuon)"
 description:
@@ -24,16 +24,18 @@ options:
     description: List of label selectors to use to filter results.
     type: list
     elements: str
+    default: []
   field_selectors:
     description: List of field selectors to use to filter results.
     type: list
     elements: str
+    default: []
 extends_documentation_fragment:
   - kubernetes.core.k8s_auth_options
   - kubernetes.core.k8s_name_options
 requirements:
-  - "python >= 3.6"
-  - "kubernetes >= 12.0.0"
+  - "python >= 3.9"
+  - "kubernetes >= 24.2.0"
   - "PyYAML >= 3.11"
 """
 

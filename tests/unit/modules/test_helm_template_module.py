@@ -7,14 +7,13 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 import unittest
-
 from unittest.mock import patch
 
 from ansible.module_utils import basic
 from ansible_collections.kubernetes.core.plugins.modules import helm_template
 from ansible_collections.kubernetes.core.tests.unit.utils.ansible_module_mock import (
-    AnsibleFailJson,
     AnsibleExitJson,
+    AnsibleFailJson,
     exit_json,
     fail_json,
     get_bin_path,
@@ -52,7 +51,7 @@ class TestDependencyUpdateWithoutChartRepoUrlOption(unittest.TestCase):
             with self.assertRaises(AnsibleExitJson) as result:
                 helm_template.main()
         mock_run_command.assert_called_once_with(
-            "/usr/bin/helm template /tmp/path", environ_update={}
+            "/usr/bin/helm template /tmp/path", environ_update={}, data=None
         )
         assert result.exception.args[0]["command"] == "/usr/bin/helm template /tmp/path"
 
@@ -75,6 +74,7 @@ class TestDependencyUpdateWithoutChartRepoUrlOption(unittest.TestCase):
         mock_run_command.assert_called_once_with(
             "/usr/bin/helm template test --repo=https://charts.com/test",
             environ_update={},
+            data=None,
         )
         assert (
             result.exception.args[0]["command"]
@@ -96,6 +96,7 @@ class TestDependencyUpdateWithoutChartRepoUrlOption(unittest.TestCase):
         mock_run_command.assert_called_once_with(
             "/usr/bin/helm template https://charts/example.tgz --dependency-update",
             environ_update={},
+            data=None,
         )
         assert (
             result.exception.args[0]["command"]

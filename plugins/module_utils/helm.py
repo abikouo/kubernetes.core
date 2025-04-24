@@ -7,19 +7,18 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 
+import copy
+import json
 import os
+import re
 import tempfile
 import traceback
-import re
-import json
-import copy
 
-from ansible.module_utils.basic import missing_required_lib
+from ansible.module_utils.basic import AnsibleModule, missing_required_lib
 from ansible.module_utils.six import string_types
 from ansible_collections.kubernetes.core.plugins.module_utils.version import (
     LooseVersion,
 )
-from ansible.module_utils.basic import AnsibleModule
 
 try:
     import yaml
@@ -78,13 +77,11 @@ def write_temp_kubeconfig(server, validate_certs=True, ca_cert=None, kubeconfig=
 
 
 class AnsibleHelmModule(object):
-
     """
     An Ansible module class for Kubernetes.core helm modules
     """
 
     def __init__(self, **kwargs):
-
         self._module = None
         if "module" in kwargs:
             self._module = kwargs.get("module")
@@ -117,7 +114,7 @@ class AnsibleHelmModule(object):
         kubeconfig = self.params.get("kubeconfig")
         if kubeconfig:
             if isinstance(kubeconfig, string_types):
-                with open(kubeconfig) as fd:
+                with open(os.path.expanduser(kubeconfig)) as fd:
                     kubeconfig_content = yaml.safe_load(fd)
             elif isinstance(kubeconfig, dict):
                 kubeconfig_content = kubeconfig
@@ -162,11 +159,13 @@ class AnsibleHelmModule(object):
             self.helm_env = self._prepare_helm_environment()
         return self.helm_env
 
-    def run_helm_command(self, command, fails_on_error=True):
+    def run_helm_command(self, command, fails_on_error=True, data=None):
         if not HAS_YAML:
             self.fail_json(msg=missing_required_lib("PyYAML"), exception=YAML_IMP_ERR)
 
-        rc, out, err = self.run_command(command, environ_update=self.env_update)
+        rc, out, err = self.run_command(
+            command, environ_update=self.env_update, data=data
+        )
         if fails_on_error and rc != 0:
             self.fail_json(
                 msg="Failure when executing Helm command. Exited {0}.\nstdout: {1}\nstderr: {2}".format(
@@ -184,13 +183,12 @@ class AnsibleHelmModule(object):
         )
 
     def get_helm_version(self):
-
         command = self.get_helm_binary() + " version"
         rc, out, err = self.run_command(command)
-        m = re.match(r'version.BuildInfo{Version:"v([0-9\.]*)",', out)
+        m = re.match(r'version.BuildInfo{Version:"v(.*?)",', out)
         if m:
             return m.group(1)
-        m = re.match(r'Client: &version.Version{SemVer:"v([0-9\.]*)", ', out)
+        m = re.match(r'Client: &version.Version{SemVer:"v(.*?)", ', out)
         if m:
             return m.group(1)
         return None
@@ -216,7 +214,6 @@ class AnsibleHelmModule(object):
         return yaml.safe_load(out)
 
     def parse_yaml_content(self, content):
-
         if not HAS_YAML:
             self.fail_json(msg=missing_required_lib("yaml"), exception=HAS_YAML)
 
@@ -228,7 +225,6 @@ class AnsibleHelmModule(object):
             )
 
     def get_manifest(self, release_name):
-
         command = [
             self.get_helm_binary(),
             "get",
@@ -241,7 +237,6 @@ class AnsibleHelmModule(object):
         return self.parse_yaml_content(out)
 
     def get_notes(self, release_name):
-
         command = [
             self.get_helm_binary(),
             "get",

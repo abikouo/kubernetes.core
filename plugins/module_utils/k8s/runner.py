@@ -4,12 +4,12 @@
 from typing import Dict
 
 from ansible.module_utils._text import to_native
-
 from ansible_collections.kubernetes.core.plugins.module_utils.k8s.client import (
     get_api_client,
 )
 from ansible_collections.kubernetes.core.plugins.module_utils.k8s.exceptions import (
     CoreException,
+    ResourceTimeout,
 )
 from ansible_collections.kubernetes.core.plugins.module_utils.k8s.resource import (
     create_definitions,
@@ -17,9 +17,7 @@ from ansible_collections.kubernetes.core.plugins.module_utils.k8s.resource impor
 from ansible_collections.kubernetes.core.plugins.module_utils.k8s.service import (
     K8sService,
     diff_objects,
-)
-from ansible_collections.kubernetes.core.plugins.module_utils.k8s.exceptions import (
-    ResourceTimeout,
+    hide_fields,
 )
 from ansible_collections.kubernetes.core.plugins.module_utils.k8s.waiter import exists
 from ansible_collections.kubernetes.core.plugins.module_utils.selector import (
@@ -137,9 +135,11 @@ def perform_action(svc, definition: Dict, params: Dict) -> Dict:
     state = params.get("state", None)
     kind = definition.get("kind")
     api_version = definition.get("apiVersion")
+    hidden_fields = params.get("hidden_fields")
 
     result = {"changed": False, "result": {}}
     instance = {}
+    warnings = []
 
     resource = svc.find_resource(kind, api_version, fail=True)
     definition["kind"] = resource.kind
@@ -173,7 +173,7 @@ def perform_action(svc, definition: Dict, params: Dict) -> Dict:
                 return result
 
         if params.get("apply"):
-            instance = svc.apply(resource, definition, existing)
+            instance, warnings = svc.apply(resource, definition, existing)
             result["method"] = "apply"
         elif not existing:
             if state == "patched":
@@ -184,15 +184,18 @@ def perform_action(svc, definition: Dict, params: Dict) -> Dict:
                     )
                 )
                 return result
-            instance = svc.create(resource, definition)
+            instance, warnings = svc.create(resource, definition)
             result["method"] = "create"
             result["changed"] = True
         elif params.get("force", False):
-            instance = svc.replace(resource, definition, existing)
+            instance, warnings = svc.replace(resource, definition, existing)
             result["method"] = "replace"
         else:
-            instance = svc.update(resource, definition, existing)
+            instance, warnings = svc.update(resource, definition, existing)
             result["method"] = "update"
+
+    if warnings:
+        result["warnings"] = warnings
 
     # If needed, wait and/or create diff
     success = True
@@ -212,7 +215,7 @@ def perform_action(svc, definition: Dict, params: Dict) -> Dict:
             existing = existing.to_dict()
         else:
             existing = {}
-        match, diffs = diff_objects(existing, instance)
+        match, diffs = diff_objects(existing, instance, hidden_fields)
         if match and diffs:
             result.setdefault("warnings", []).append(
                 "No meaningful diff was generated, but the API may not be idempotent "
@@ -222,7 +225,7 @@ def perform_action(svc, definition: Dict, params: Dict) -> Dict:
         if svc.module._diff:
             result["diff"] = diffs
 
-    result["result"] = instance
+    result["result"] = hide_fields(instance, hidden_fields)
     if not success:
         raise ResourceTimeout(
             '"{0}" "{1}": Timed out waiting on resource'.format(

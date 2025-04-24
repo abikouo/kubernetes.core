@@ -17,8 +17,8 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-from collections import OrderedDict
 import json
+from collections import OrderedDict
 
 from ansible.module_utils.common.dict_transformations import dict_merge
 from ansible_collections.kubernetes.core.plugins.module_utils.exceptions import (
@@ -30,7 +30,6 @@ from ansible_collections.kubernetes.core.plugins.module_utils.k8s.core import (
 from ansible_collections.kubernetes.core.plugins.module_utils.version import (
     LooseVersion,
 )
-
 
 try:
     from kubernetes.dynamic.exceptions import NotFoundError
@@ -150,6 +149,7 @@ def k8s_apply(resource, definition, **kwargs):
             force_conflicts=kwargs.get("force_conflicts"),
             field_manager=kwargs.get("field_manager"),
             dry_run=kwargs.get("dry_run"),
+            serialize=kwargs.get("serialize"),
         )
     if not existing:
         return resource.create(
@@ -159,6 +159,7 @@ def k8s_apply(resource, definition, **kwargs):
         return resource.get(
             name=definition["metadata"]["name"],
             namespace=definition["metadata"].get("namespace"),
+            **kwargs
         )
     return resource.patch(
         body=desired,

@@ -15,7 +15,7 @@ module: k8s_drain
 
 short_description: Drain, Cordon, or Uncordon node in k8s cluster
 
-version_added: "2.2.0"
+version_added: 2.2.0
 
 author: Aubin Bikouo (@abikouo)
 
@@ -41,8 +41,18 @@ options:
       - The name of the node.
     required: true
     type: str
+  pod_selectors:
+    description:
+      - Label selector to filter pods on the node.
+      - This option has effect only when C(state) is set to I(drain).
+    type: list
+    elements: str
+    version_added: 3.0.0
+    aliases:
+    - label_selectors
   delete_options:
     type: dict
+    default: {}
     description:
       - Specify options to delete pods.
       - This option has effect only when C(state) is set to I(drain).
@@ -87,8 +97,8 @@ options:
             type: int
 
 requirements:
-  - python >= 3.6
-  - kubernetes >= 12.0.0
+  - python >= 3.9
+  - kubernetes >= 24.2.0
 """
 
 EXAMPLES = r"""
@@ -96,14 +106,15 @@ EXAMPLES = r"""
   kubernetes.core.k8s_drain:
     state: drain
     name: foo
-    force: yes
+    delete_options:
+      force: yes
 
 - name: Drain node "foo", but abort if there are pods not managed by a ReplicationController, Job, or DaemonSet, and use a grace period of 15 minutes.
   kubernetes.core.k8s_drain:
     state: drain
     name: foo
     delete_options:
-        terminate_grace_period: 900
+      terminate_grace_period: 900
 
 - name: Mark node "foo" as schedulable.
   kubernetes.core.k8s_drain:
@@ -115,6 +126,13 @@ EXAMPLES = r"""
     state: cordon
     name: foo
 
+- name: Drain node "foo" using label selector to filter the list of pods to be drained.
+  kubernetes.core.k8s_drain:
+    state: drain
+    name: foo
+    pod_selectors:
+    - 'app!=csi-attacher'
+    - 'app!=csi-provisioner'
 """
 
 RETURN = r"""
@@ -126,10 +144,12 @@ result:
 """
 
 import copy
+import json
 import time
 import traceback
-
 from datetime import datetime
+
+from ansible.module_utils._text import to_native
 from ansible_collections.kubernetes.core.plugins.module_utils.ansiblemodule import (
     AnsibleModule,
 )
@@ -146,12 +166,10 @@ from ansible_collections.kubernetes.core.plugins.module_utils.k8s.exceptions imp
     CoreException,
 )
 
-from ansible.module_utils._text import to_native
-
 try:
     from kubernetes.client.api import core_v1_api
-    from kubernetes.client.models import V1DeleteOptions, V1ObjectMeta
     from kubernetes.client.exceptions import ApiException
+    from kubernetes.client.models import V1DeleteOptions, V1ObjectMeta
 except ImportError:
     # ImportError are managed by the common module already.
     pass
@@ -169,6 +187,17 @@ except ImportError:
         k8s_import_exception = e
         K8S_IMP_ERR = traceback.format_exc()
         HAS_EVICTION_API = False
+
+
+def format_dynamic_api_exc(exc):
+    if exc.body:
+        if exc.headers and exc.headers.get("Content-Type") == "application/json":
+            message = json.loads(exc.body).get("message")
+            if message:
+                return message
+        return exc.body
+    else:
+        return "%s Reason: %s" % (exc.status, exc.reason)
 
 
 def filter_pods(pods, force, ignore_daemonset, delete_emptydir_data):
@@ -275,16 +304,19 @@ class K8sDrainAnsible(object):
             return (datetime.now() - start).seconds
 
         response = None
-        pod = pods.pop()
+        pod = None
         while (_elapsed_time() < wait_timeout or wait_timeout == 0) and pods:
             if not pod:
-                pod = pods.pop()
+                pod = pods[-1]
             try:
                 response = self._api_instance.read_namespaced_pod(
                     namespace=pod[0], name=pod[1]
                 )
-                if not response:
+                if not response or response.spec.node_name != self._module.params.get(
+                    "name"
+                ):
                     pod = None
+                    del pods[-1]
                 time.sleep(wait_sleep)
             except ApiException as exc:
                 if exc.reason != "Not Found":
@@ -292,6 +324,7 @@ class K8sDrainAnsible(object):
                         msg="Exception raised: {0}".format(exc.reason)
                     )
                 pod = None
+                del pods[-1]
             except Exception as e:
                 self._module.fail_json(msg="Exception raised: {0}".format(to_native(e)))
         if not pods:
@@ -318,7 +351,7 @@ class K8sDrainAnsible(object):
                 if exc.reason != "Not Found":
                     self._module.fail_json(
                         msg="Failed to delete pod {0}/{1} due to: {2}".format(
-                            namespace, name, exc.reason
+                            namespace, name, to_native(format_dynamic_api_exc(exc))
                         )
                     )
             except Exception as exc:
@@ -327,6 +360,17 @@ class K8sDrainAnsible(object):
                         namespace, name, to_native(exc)
                     )
                 )
+
+    def list_pods(self):
+        params = {
+            "field_selector": "spec.nodeName={name}".format(
+                name=self._module.params.get("name")
+            )
+        }
+        pod_selectors = self._module.params.get("pod_selectors")
+        if pod_selectors:
+            params["label_selector"] = ",".join(pod_selectors)
+        return self._api_instance.list_pod_for_all_namespaces(**params)
 
     def delete_or_evict_pods(self, node_unschedulable):
         # Mark node as unschedulable
@@ -350,12 +394,7 @@ class K8sDrainAnsible(object):
                 self.patch_node(unschedulable=False)
 
         try:
-            field_selector = "spec.nodeName={name}".format(
-                name=self._module.params.get("name")
-            )
-            pod_list = self._api_instance.list_pod_for_all_namespaces(
-                field_selector=field_selector
-            )
+            pod_list = self.list_pods()
             # Filter pods
             force = self._drain_options.get("force", False)
             ignore_daemonset = self._drain_options.get("ignore_daemonsets", False)
@@ -406,7 +445,6 @@ class K8sDrainAnsible(object):
         return dict(result=" ".join(result))
 
     def patch_node(self, unschedulable):
-
         body = {"spec": {"unschedulable": unschedulable}}
         try:
             self._api_instance.patch_node(
@@ -418,7 +456,6 @@ class K8sDrainAnsible(object):
             )
 
     def execute_module(self):
-
         state = self._module.params.get("state")
         name = self._module.params.get("name")
         try:
@@ -485,6 +522,11 @@ def argspec():
                     wait_timeout=dict(type="int"),
                     wait_sleep=dict(type="int", default=5),
                 ),
+            ),
+            pod_selectors=dict(
+                type="list",
+                elements="str",
+                aliases=["label_selectors"],
             ),
         )
     )

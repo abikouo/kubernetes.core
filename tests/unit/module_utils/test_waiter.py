@@ -5,20 +5,20 @@ from unittest.mock import Mock
 
 import pytest
 import yaml
-from kubernetes.dynamic.resource import ResourceInstance
-from kubernetes.dynamic.exceptions import NotFoundError
-
 from ansible_collections.kubernetes.core.plugins.module_utils.k8s.waiter import (
+    DummyWaiter,
+    Waiter,
     clock,
+    cluster_operator_ready,
     custom_condition,
     deployment_ready,
-    DummyWaiter,
     exists,
     get_waiter,
     pod_ready,
     resource_absent,
-    Waiter,
 )
+from kubernetes.dynamic.exceptions import NotFoundError
+from kubernetes.dynamic.resource import ResourceInstance
 
 
 def resources(filepath):
@@ -30,6 +30,7 @@ def resources(filepath):
 RESOURCES = resources("fixtures/definitions.yml")
 PODS = resources("fixtures/pods.yml")
 DEPLOYMENTS = resources("fixtures/deployments.yml")
+CLUSTER_OPERATOR = resources("fixtures/clusteroperator.yml")
 
 
 def test_clock_times_out():
@@ -120,3 +121,10 @@ def test_get_waiter_returns_correct_waiter():
         ).predicate.func
         == custom_condition
     )
+
+
+@pytest.mark.parametrize(
+    "clusteroperator,expected", zip(CLUSTER_OPERATOR, [True, False, False, False])
+)
+def test_cluster_operator(clusteroperator, expected):
+    assert cluster_operator_ready(clusteroperator) is expected

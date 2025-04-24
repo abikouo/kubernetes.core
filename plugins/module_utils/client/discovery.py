@@ -13,24 +13,23 @@
 # limitations under the License.
 
 
+import hashlib
 import json
 import os
-from collections import defaultdict
-import hashlib
 import tempfile
+from collections import defaultdict
 from functools import partial
 
 import kubernetes.dynamic
 import kubernetes.dynamic.discovery
+from ansible_collections.kubernetes.core.plugins.module_utils.client.resource import (
+    ResourceList,
+)
 from kubernetes import __version__
 from kubernetes.dynamic.exceptions import (
     ResourceNotFoundError,
     ResourceNotUniqueError,
     ServiceUnavailableError,
-)
-
-from ansible_collections.kubernetes.core.plugins.module_utils.client.resource import (
-    ResourceList,
 )
 
 
@@ -114,7 +113,7 @@ class Discoverer(kubernetes.dynamic.discovery.Discoverer):
             filter(lambda resource: "/" in resource["name"], resources_response)
         )
         for subresource in subresources_raw:
-            resource, name = subresource["name"].split("/")
+            resource, name = subresource["name"].split("/", 1)
             subresources[resource][name] = subresource
 
         for resource in resources_raw:
