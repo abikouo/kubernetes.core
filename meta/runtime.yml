@@ -1,5 +1,5 @@
 ---
-requires_ansible: '>=2.15.0'
+requires_ansible: '>=2.16.0'
 
 action_groups:
   helm:
@@ -8,24 +8,26 @@ action_groups:
     - helm_repository
   k8s:
     - k8s
-    - k8s_exec
-    - k8s_info
-    - k8s_log
-    - k8s_scale
-    - k8s_service
+    - k8s_cluster_info
     - k8s_cp
     - k8s_drain
+    - k8s_exec
+    - k8s_info
+    - k8s_json_patch
+    - k8s_log
+    - k8s_rollback
+    - k8s_scale
+    - k8s_service
 
 plugin_routing:
   inventory:
     openshift:
       redirect: community.okd.openshift
     k8s:
-      deprecation:
+      tombstone:
         removal_version: 6.0.0
         warning_text: >-
-          The k8s inventory plugin has been deprecated and
-          will be removed in release 6.0.0.
+          The k8s inventory plugin was slated for deprecation in 3.3.0 and has been removed in release 6.0.0. Use kubernetes.core.k8s_info and ansible.builtin.add_host instead.
   modules:
     k8s_auth:
       redirect: community.okd.k8s_auth

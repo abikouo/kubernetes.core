@@ -79,6 +79,7 @@ options:
 
 notes:
     - the tar binary is required on the container when copying from local filesystem to pod.
+    - the (init) container has to be started before you copy files or directories to it.
 """
 
 EXAMPLES = r"""
@@ -139,7 +140,7 @@ result:
 
 import copy
 
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 from ansible_collections.kubernetes.core.plugins.module_utils.ansiblemodule import (
     AnsibleModule,
 )

@@ -4,6 +4,112 @@ Kubernetes Collection Release Notes
 
 .. contents:: Topics
 
+v6.2.0
+======
+
+Release Summary
+---------------
+
+This release adds minor changes and bugfixes, including support of skip-schema-validation in ``helm`` module and removing deprecated ``ansible.module_utils.six`` imports.
+
+Minor Changes
+-------------
+
+- Add support of skip-schema-validation in ``helm`` module (https://github.com/ansible-collections/kubernetes.core/pull/995)
+- kustomize - Add support of local environ (https://github.com/ansible-collections/kubernetes.core/pull/786).
+
+Bugfixes
+--------
+
+- Remove ``ansible.module_utils.six`` imports to avoid warnings (https://github.com/ansible-collections/kubernetes.core/pull/998).
+- Update the ``k8s_cp`` module to also work for init containers (https://github.com/ansible-collections/kubernetes.core/pull/971).
+
+v6.1.0
+======
+
+Release Summary
+---------------
+
+This release adds ``plain_http`` and ``take_ownership`` parameters for helm modules, support for ``hidden_fields`` in ``k8s_json_patch``, documented lack of idempotency support in ``helm_registry_auth`` with ``helm ≥ 3.18.0``, and improved ``k8s_rollback`` test coverage.
+
+Minor Changes
+-------------
+
+- Module helm_registry_auth do not support idempotency with `helm >= 3.18.0` (https://github.com/ansible-collections/kubernetes.core/pull/946)
+- Module k8s_json_patch - Add support for `hidden_fields` (https://github.com/ansible-collections/kubernetes.core/pull/964).
+- helm - Parameter plain_http added for working with insecure OCI registries (https://github.com/ansible-collections/kubernetes.core/pull/934).
+- helm - Parameter take_ownership added (https://github.com/ansible-collections/kubernetes.core/pull/957).
+- helm_pull - Parameter plain_http added for working with insecure OCI registries (https://github.com/ansible-collections/kubernetes.core/pull/934).
+- helm_template - Parameter plain_http added for working with insecure OCI registries (https://github.com/ansible-collections/kubernetes.core/pull/934).
+
+Bugfixes
+--------
+
+- module_utils/k8s/service - hide fields first before creating diffs (https://github.com/ansible-collections/kubernetes.core/pull/915).
+
+v6.0.0
+======
+
+Release Summary
+---------------
+
+This major release removes the deprecated ``k8s`` inventory plugin and also removes ``ansible-core<2.16`` support.
+
+Breaking Changes / Porting Guide
+--------------------------------
+
+- Remove deprecated ``k8s`` invetory plugin (https://github.com/ansible-collections/kubernetes.core/pull/867).
+- Remove support for ``ansible-core<2.16`` (https://github.com/ansible-collections/kubernetes.core/pull/867).
+
+v5.4.1
+======
+
+Release Summary
+---------------
+
+This release includes bugfixes for k8s service field handling, k8s_cp init containers support, and removes deprecated ansible.module_utils.six imports.
+
+Bugfixes
+--------
+
+- Remove ``ansible.module_utils.six`` imports to avoid warnings (https://github.com/ansible-collections/kubernetes.core/pull/998).
+- Update the `k8s_cp` module to also work for init containers (https://github.com/ansible-collections/kubernetes.core/pull/971).
+- module_utils/k8s/service - hide fields first before creating diffs (https://github.com/ansible-collections/kubernetes.core/pull/915).
+
+v5.4.0
+======
+
+Release Summary
+---------------
+
+This release updates the ``helm_registry_auth`` module to match the behavior of ``helm >= 3.18.0`` which reports a successful logout regardless of the current state (i.e., no idempotency).
+
+Minor Changes
+-------------
+
+- Module ``helm_registry_auth`` does not support idempotency with ``helm >= 3.18.0`` (https://github.com/ansible-collections/kubernetes.core/pull/946)
+
+v5.3.0
+======
+
+Release Summary
+---------------
+
+This release includes minor changes, bug fixes and also bumps ``ansible-lint`` version to ``25.1.2``.
+
+Minor Changes
+-------------
+
+- Bump version of ``ansible-lint`` to 25.1.2 (https://github.com/ansible-collections/kubernetes.core/pull/919).
+- action/k8s_info - update templating mechanism with changes from ``ansible-core 2.19`` (https://github.com/ansible-collections/kubernetes.core/pull/888).
+- helm - add ``reset_then_reuse_values`` support to helm module (https://github.com/ansible-collections/kubernetes.core/issues/803).
+- helm - add support for ``insecure_skip_tls_verify`` option to helm and helm_repository(https://github.com/ansible-collections/kubernetes.core/issues/694).
+
+Bugfixes
+--------
+
+- module_utils/k8s/service - fix issue when trying to delete resource using ``delete_options`` and ``check_mode=true`` (https://github.com/ansible-collections/kubernetes.core/issues/892).
+
 v5.2.0
 ======
 
@@ -30,7 +136,7 @@ This release came with new module ``helm_registry_auth``, improvements to the er
 Minor Changes
 -------------
 
-- Bump version of ansible-lint to minimum 24.7.0 (https://github.com/ansible-collections/kubernetes.core/pull/765).
+- Bump version of ``ansible-lint`` to minimum 24.7.0 (https://github.com/ansible-collections/kubernetes.core/pull/765).
 - Parameter insecure_registry added to helm_template as equivalent of insecure-skip-tls-verify (https://github.com/ansible-collections/kubernetes.core/pull/805).
 - k8s_drain - Improve error message for pod disruption budget when draining a node (https://github.com/ansible-collections/kubernetes.core/issues/797).
 
@@ -103,7 +209,7 @@ Bugfixes
 - integrations test helm_kubeconfig - set helm version to v3.10.3 to avoid incompatability with new bitnami charts (https://github.com/ansible-collections/kubernetes.core/pull/670).
 
 v3.3.1
-=======
+======
 
 Release Summary
 ---------------
