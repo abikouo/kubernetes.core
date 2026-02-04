@@ -34,9 +34,9 @@
       wait: true
       namespace: "{{ test_namespace }}"
       template:
-        - daemonset.yml.j2
-        - deployment.yml.j2
-        - pod1.yml.j2
+      - daemonset.yml.j2
+      - deployment.yml.j2
+      - pod1.yml.j2
 
   - name: Test Cordon node
     ansible.builtin.include_tasks: tasks/cordon.yml
