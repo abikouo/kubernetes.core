@@ -66,7 +66,7 @@
   vars:
     schedulable: true
 
-- name: Assert that running with check_mode did not deleted any Pod
+- name: Assert that running with check_mode did not delete any Pod
   k8s_info:
     namespace: '{{ test_namespace }}'
     kind: Pod
