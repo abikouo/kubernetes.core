@@ -1105,7 +1105,7 @@ def main():
                     and LooseVersion(helm_diff_version) >= LooseVersion("3.4.1")
                 )
             ):
-                (would_change, prepared) = helmdiff_check(
+                would_change, prepared = helmdiff_check(
                     module,
                     release_name,
                     chart_ref,

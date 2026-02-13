@@ -40,16 +40,20 @@ def parse_helm_plugin_list(output=None):
     if not output:
         return ret
 
+    parsing_grammar = None
     for line in output:
         if line.startswith("NAME"):
+            parsing_grammar = [s.strip().lower() for s in line.split("\t")]
             continue
-        name, version, description = line.split("\t", 3)
-        name = name.strip()
-        version = version.strip()
-        description = description.strip()
-        if name == "":
+        if parsing_grammar is None:
             continue
-        ret.append((name, version, description))
+        plugin = {
+            parsing_grammar[i]: v.strip()
+            for i, v in enumerate(line.split("\t", len(parsing_grammar)))
+        }
+        if plugin["name"] == "":
+            continue
+        ret.append(plugin)
 
     return ret
 

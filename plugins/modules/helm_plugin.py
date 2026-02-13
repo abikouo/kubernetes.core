@@ -211,9 +211,9 @@ def main():
     elif state == "absent":
         plugin_name = module.params.get("plugin_name")
         rc, output, err, command = module.get_helm_plugin_list()
-        out = parse_helm_plugin_list(output=output.splitlines())
+        plugins = parse_helm_plugin_list(output=output.splitlines())
 
-        if not out:
+        if not plugins:
             module.exit_json(
                 failed=False,
                 changed=False,
@@ -224,12 +224,7 @@ def main():
                 rc=rc,
             )
 
-        found = False
-        for line in out:
-            if line[0] == plugin_name:
-                found = True
-                break
-        if not found:
+        if all(plugin["name"] != plugin_name for plugin in plugins):
             module.exit_json(
                 failed=False,
                 changed=False,
@@ -267,9 +262,9 @@ def main():
     elif state == "latest":
         plugin_name = module.params.get("plugin_name")
         rc, output, err, command = module.get_helm_plugin_list()
-        out = parse_helm_plugin_list(output=output.splitlines())
+        plugins = parse_helm_plugin_list(output=output.splitlines())
 
-        if not out:
+        if not plugins:
             module.exit_json(
                 failed=False,
                 changed=False,
@@ -280,12 +275,7 @@ def main():
                 rc=rc,
             )
 
-        found = False
-        for line in out:
-            if line[0] == plugin_name:
-                found = True
-                break
-        if not found:
+        if all(plugin["name"] != plugin_name for plugin in plugins):
             module.exit_json(
                 failed=False,
                 changed=False,

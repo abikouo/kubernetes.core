@@ -103,24 +103,11 @@ def main():
 
     plugin_name = module.params.get("plugin_name")
 
-    plugin_list = []
-
     rc, output, err, command = module.get_helm_plugin_list()
 
-    out = parse_helm_plugin_list(output=output.splitlines())
-
-    for line in out:
-        if plugin_name is None:
-            plugin_list.append(
-                {"name": line[0], "version": line[1], "description": line[2]}
-            )
-            continue
-
-        if plugin_name == line[0]:
-            plugin_list.append(
-                {"name": line[0], "version": line[1], "description": line[2]}
-            )
-            break
+    plugins = parse_helm_plugin_list(output=output.splitlines())
+    if plugin_name is not None:
+        plugins = [plugin for plugin in plugins if plugin.get("name") == plugin_name]
 
     module.exit_json(
         changed=True,
@@ -128,7 +115,7 @@ def main():
         stdout=output,
         stderr=err,
         rc=rc,
-        plugin_list=plugin_list,
+        plugin_list=plugins,
     )
 
 
