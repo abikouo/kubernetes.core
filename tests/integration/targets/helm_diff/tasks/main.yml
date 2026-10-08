@@ -250,7 +250,7 @@
     - name: Log into Helm registry
       ansible.builtin.shell: >-
         echo 'pass123!' | {{ helm_binary }} registry login -u testuser --password-stdin localhost:6035
-        {{ helm_version | string is ansible.builtin.version("3.18.0", ">=") | ternary('--plain-http', '') }}
+        {{ helm_version | string is ansible.builtin.version("3.13.0", ">=") | ternary('--plain-http', '') }}
 
     - name: Install chart from remote URL
       helm:
