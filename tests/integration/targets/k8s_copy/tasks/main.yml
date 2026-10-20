@@ -33,7 +33,7 @@
         init_pod_status.resources|length > 0
         and 'initContainerStatuses' in init_pod_status.resources.0.status
         and init_pod_status.resources.0.status.initContainerStatuses|length > 0
-        and init_pod_status.resources.0.status.initContainerStatuses.0.started|bool
+        and init_pod_status.resources.0.status.initContainerStatuses.0.started|default(false)|bool
 
     - include_tasks: test_copy_errors.yml
     - include_tasks: test_check_mode.yml
@@ -41,6 +41,7 @@
     - include_tasks: test_multi_container_pod.yml
     - include_tasks: test_copy_directory.yml
     - include_tasks: test_copy_large_file.yml
+    - include_tasks: test_copy_repeated.yml
     - include_tasks: test_copy_item_with_space_in_its_name.yml
     - include_tasks: test_init_container_pod.yml
 

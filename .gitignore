@@ -17,10 +17,15 @@ tests/integration/cloud-config-*
 
 # Helm charts
 tests/integration/*-chart-*.tgz
+tests/integration/targets/*/*.tgz
 
 # ansible-test generated file
 tests/integration/inventory
 tests/integration/*-*.yml
 
-# VS Code settings
+# IDE and editor settings
 .vscode/
+.claude/
+
+# Root coverage report for SonarCloud (generated locally or in CI)
+/coverage.xml

@@ -20,7 +20,7 @@ author:
   - Lucas Boisserie (@LucasBoisserie)
 
 requirements:
-  - "helm (https://github.com/helm/helm/releases)"
+  - "helm >= 3.0.0 (https://github.com/helm/helm/releases)"
   - "yaml (https://pypi.org/project/PyYAML/)"
 
 description:
@@ -295,13 +295,15 @@ def main():
     if not IMP_YAML:
         module.fail_json(msg=missing_required_lib("yaml"), exception=IMP_YAML_ERR)
 
-    # Validate Helm version >=3.0.0,<4.0.0
+    # Validate Helm version >= 3.0.0
     module.validate_helm_version()
 
     changed = False
 
     repo_name = module.params.get("repo_name")
     repo_url = module.params.get("repo_url")
+    if repo_url:
+        repo_url = repo_url.rstrip("/")
     repo_username = module.params.get("repo_username")
     repo_password = module.params.get("repo_password")
     repo_state = module.params.get("repo_state")
@@ -329,7 +331,7 @@ def main():
                 insecure_skip_tls_verify,
             )
             changed = True
-        elif repository_status["url"] != repo_url:
+        elif repository_status["url"].rstrip("/") != repo_url:
             module.fail_json(
                 msg="Repository already have a repository named {0}".format(repo_name)
             )

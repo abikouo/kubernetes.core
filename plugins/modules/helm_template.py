@@ -21,6 +21,10 @@ author:
 description:
   - Render chart templates to an output directory or as text of concatenated yaml documents.
 
+requirements:
+  - "helm >= 3.0.0 (https://github.com/helm/helm/releases)"
+  - "yaml (https://pypi.org/project/PyYAML/)"
+
 options:
   binary_path:
     description:
@@ -224,6 +228,7 @@ except ImportError:
 from ansible.module_utils.basic import missing_required_lib
 from ansible_collections.kubernetes.core.plugins.module_utils.helm import (
     AnsibleHelmModule,
+    strip_registry_progress,
 )
 from ansible_collections.kubernetes.core.plugins.module_utils.version import (
     LooseVersion,
@@ -347,7 +352,7 @@ def main():
     if not IMP_YAML:
         module.fail_json(msg=missing_required_lib("yaml"), exception=IMP_YAML_ERR)
 
-    # Validate Helm version >=3.0.0,<4.0.0
+    # Validate Helm version >=3.0.0
     module.validate_helm_version()
 
     helm_cmd = module.get_helm_binary()
@@ -390,6 +395,9 @@ def main():
 
     if not check_mode:
         rc, out, err = module.run_helm_command(tmpl_cmd)
+        # 'stdout' is documented to hold the rendered templates, so keep helm's
+        # OCI registry progress messages out of it.
+        out = strip_registry_progress(out)
     else:
         out = err = ""
         rc = 0
